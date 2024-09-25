@@ -13,7 +13,8 @@ import argparse
 import pyqtgraph as pg
 import numpy as np
 from scipy.io.wavfile import write
-from scipy import signal
+# from scipy import signal
+from Signal import Signal, Sine, Square, Sawtooth, Chirp
 from datetime import datetime
 
 from PyQt6.QtCore import (
@@ -169,13 +170,28 @@ class MainWindow(QMainWindow):
 # generate y values for signal
         self.y = np.sin(2 * np.pi * freq * self.time)
         self.y += 0.5 * np.sin(2 * np.pi * freq * 3 * self.time)
-        self.SoundCurve = plotWdg.plot(self.time, self.y, pen='red')
+        # self.SoundCurve = plotWdg.plot(self.time, self.y, pen='red')
+
+        sig0 = Sine(440, length=2)
+        sig1 = Sine(2 * 440, length=2)
+        sig2 = sig0.__add__(sig1)
+        self.sig = sig2  # Sine(440, length=2)
+        self.SoundCurve = plotWdg.plot(self.sig.ts[:1024],
+                                       self.sig.ys[:1024], pen='red')
         # plotT.setYRange(10, 105)
         # plotT.plot(self.TredArray)  # pen=({'color: red', 'width: 1'}), name="ch{1}")
 
+        layoutButtons = QHBoxLayout()
         saveBtn = QPushButton('Save Data')
         saveBtn.clicked.connect(self.save_data)
-        layoutMain.addWidget(saveBtn)  # , 3, 0)
+        layoutButtons.addWidget(saveBtn)  # , 3, 0)
+        playBtn = QPushButton('Play Sound')
+        playBtn.clicked.connect(self.pydub_play)
+        layoutButtons.addWidget(playBtn)  # , 3, 0)
+        saveWav = QPushButton('Save Wav')
+        saveWav.clicked.connect(self.save_wav)
+        layoutButtons.addWidget(saveWav)  # , 3, 0)
+        layoutMain.addLayout(layoutButtons)
         # self.echotext_widget = EchoText()
         # layoutMain.addWidget(self.echotext_widget)
 
@@ -187,17 +203,25 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.update_panels)
         self.timer.start(SAMPLE_PERIOD)  # Sample Period in millisec
 
+    def pydub_play(self):
+        self.sig.play()
+
     def save_data(self):
         T_mat = np.array([self.TredArray, self.TblueArray])
 
         filename = f"Temperature_log_{datetime.now():%Y-%m-%d_%H-%m-%d}.csv"
         np.savetxt(filename, T_mat.T, delimiter=",")
 
+    def save_wav(self):
+        self.sig.to_wav('som.wav')
+
     def update_panels(self):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
         print(self.harmonic1.dialAmp.value())
         try:
-            self.SoundCurve.setData(self.time, self.y)
+            # self.SoundCurve.setData(self.time, self.y)
+            self.SoundCurve.setData(self.sig.ts[:1024],
+                                    self.sig.ys[:1024])
 
         except KeyboardInterrupt:
             sys.exit()
