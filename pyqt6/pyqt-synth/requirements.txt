@@ -1,0 +1,4 @@
+pyqtgraph
+numpy
+scipy
+pygame

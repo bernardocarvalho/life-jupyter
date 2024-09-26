@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-PyQt6 App to Synthesize Composite Fourier Serier
+PyQt6 App to Synthesize and composite Fourier Series type Sound
 author:  B. Carvalho / IPFN-IST
 email: bernardo.carvalho@tecnico.ulisboa.pt
 https://medium.com/@noahhradek/sound-synthesis-in-python-4e60614010da
@@ -21,19 +21,13 @@ from pyqtgraph.Qt import (
         QtCore,)
 
 
-UPDATE_PERIOD = 1000  # Sample Period in millisec
-NUM_HARMONICS = 7
-INITIAL_VOL = np.array([10, 5, 0, 0, 0, 1, 0])
+UPDATE_PERIOD = 1000  # Update signal / plot Period, in millisec
+NUM_HARMONICS = 8
+INITIAL_VOL = np.array([10, 5, 0, 0, 0, 1, 0, 0])
 AUDIO_RATE = 44100
-freq = 440
-FREQ_SIGNAL = 440
-length = 0.02  # in sec
-num_samples = int(AUDIO_RATE * length)
-
-# create time values
-# generate y values for signal
-# save to wave file
-# write("sine.wav", AUDIO_RATE, y)
+# freq = 440
+#length = 0.02  # in sec
+# num_samples = int(AUDIO_RATE * length)
 
 
 def parseCommandLine():
@@ -48,6 +42,10 @@ def parseCommandLine():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--samples', type=int,
                         help='Number of samples to Show/Store', default=120)
+    parser.add_argument('-f', '--frequency', type=int,
+                        help='Main signal frequency in Hz', default=440)
+    parser.add_argument('-l', '--length', type=int,
+                        help='Signal Lenght in s', default=2)
     parser.add_argument('-u', '--simUl',
                         action='store_true', help='Simulation Mode')
     args = vars(parser.parse_args())
@@ -80,15 +78,18 @@ class HarmonicControl(QtWidgets.QWidget):
         # self.dialAmp.setValue(0)
         dial.setNotchesVisible(True)
         self.dialAmp = dial
-        self.dialAmp.valueChanged.connect(self.sliderMoved)
+        self.dialAmp.valueChanged.connect(self.dialMoved)
         layout.addWidget(self.dialAmp)
-        layout.addWidget(QtWidgets.QLabel('Ampl'))
+        self.lblAmp = QtWidgets.QLabel("Amp:")
+        layout.addWidget(self.lblAmp)
         self.setLayout(layout)
 
+    def dialMoved(self):
+        self.lblAmp.setText(f"Amp: {self.dialAmp.value()}")
+
     def sliderMoved(self):
-        print(f"Dial value = %i" % (self.dialAmp.value()))
-
-
+        print("Dial value = %i" % (self.dialAmp.value()))
+        # self.lblAmp.setText(f"Amp: {self.dialAmp.value()}")
 
     def textbox_text_changed(self):
         self.echo_label.setText(self.textbox.text())
@@ -99,8 +100,9 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.setWindowTitle("Fourier Shyntesizer")
         args = parseCommandLine()  # Return command line arguments
-        self.simul = args['simUl']
-        self.val = 5.0
+        self.freq = args['frequency']
+        self.length = args['length']
+        # self.val = 5.0
 
         container = QtWidgets.QWidget()
         layoutMain = QtWidgets.QVBoxLayout()
@@ -116,10 +118,7 @@ class MainWindow(QtWidgets.QMainWindow):
             h.dialAmp.setValue(INITIAL_VOL[i])
             self.harmonics.append(h)
             layoutHarmonics.addWidget(h)
-        # layoutMain.addWidget(slider, 0, 0)
-        #lblTb = QLabel('Temperature BLUE')
-        #lblTb.setStyleSheet("color: blue")
-        # layoutMain.addWidget(lblTb, 0, 1)
+        # lblTb.setStyleSheet("color: blue")
         # layoutMain.addWidget(self.Tredlabel, 1, 0)
         # self.Tbluelabel = QLabel('11.0')
         # layoutMain.addWidget(self.Tbluelabel, 1, 1)
@@ -127,19 +126,16 @@ class MainWindow(QtWidgets.QMainWindow):
         layoutMain.addWidget(plotWdg, stretch=2)  # , 2, 0, 1, 2)
         # samples = args['samples']  # Number of sample to store
         # create time values
-        self.time = np.linspace(0, length, num_samples,
-                                dtype=np.float32)
+        # self.time = np.linspace(0, length, num_samples,
+        #                        dtype=np.float32)
 # generate y values for signal
-        self.y = np.sin(2 * np.pi * freq * self.time)
-        self.y += 0.5 * np.sin(2 * np.pi * freq * 3 * self.time)
+        # self.y = np.sin(2 * np.pi * freq * self.time)
+        # self.y += 0.5 * np.sin(2 * np.pi * freq * 3 * self.time)
         # self.SoundCurve = plotWdg.plot(self.time, self.y, pen='red')
 
-        sig0 = Sine(440, length=2)
-        sig1 = Sine(2 * 440, length=2)
-        sig2 = sig0.__add__(sig1)
-        self.sig = sig2  # Sine(440, length=2)
-        self.SoundCurve = plotWdg.plot(self.sig.ts[:1024],
-                                       self.sig.ys[:1024], pen='red')
+        self.SoundCurve = plotWdg.plot(pen='r')
+        # self.SoundCurve = plotWdg.plot(self.sig.ts[:1024],
+        #                               self.sig.ys[:1024], pen='rd')
         # plotT.setYRange(10, 105)
         # plotT.plot(self.TredArray)  # pen=({'color: red', 'width: 1'}), name="ch{1}")
 
@@ -169,9 +165,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sig.play()
 
     def save_data(self):
-        T_mat = np.array([self.TredArray, self.TblueArray])
+        T_mat = np.array([self.sig.ts, self.sig.ys])
 
-        filename = f"Temperature_log_{datetime.now():%Y-%m-%d_%H-%m-%d}.csv"
+        filename = f"Sound_{datetime.now():%Y-%m-%d_%H-%m-%d}.csv"
         np.savetxt(filename, T_mat.T, delimiter=",")
 
     def save_wav(self):
@@ -181,11 +177,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
         print(self.harmonics[0].dialAmp.value())
 
-        sig = self.harmonics[0].dialAmp.value() * Sine(FREQ_SIGNAL, length=2)
+        a = self.harmonics[0].dialAmp.value()
+        sig = Sine(self.freq, amp=a, phase=0.0, length=self.length)
         for i in range(1, NUM_HARMONICS):
             a = self.harmonics[i].dialAmp.value()
             n = self.harmonics[i].order
-            siga = a * Sine(n * FREQ_SIGNAL, length=2)
+            print(f"Order: {i}, Amp: {a}")
+            siga = Sine(n * self.freq, a, 0.0, self.length)
             sig = sig.__add__(siga)
         self.sig = sig
         try:

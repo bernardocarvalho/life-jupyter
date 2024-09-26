@@ -69,7 +69,8 @@ class Signal(object):
     # n - int number of repeats
     def repeat(self, n):
         length = self.ts.shape[0]
-        ts = np.linspace(0, n * length, n * length * self.rate, dtype=np.float32)
+        ts = np.linspace(0, n * length,
+                         n * length * self.rate, dtype=np.float32)
         ys = np.repeat(self.ys, n)
         return Signal(self.ts, ys)
 
@@ -124,9 +125,10 @@ class Signal(object):
 
 
 class Sine(Signal):
-    def __init__(self, freq, amp=1., length=1):
+    def __init__(self, freq, amp=1., phase=0., length=1):
         self.ts = np.linspace(0, length, length * AUDIO_RATE, dtype=np.float32)
-        self.ys = amp * np.sin(2 * np.pi * freq * self.ts)
+        self.ys = amp * np.sin(2 * np.pi * freq * self.ts +
+                               phase / 180.0 * np.pi)
         super().__init__(self.ts, self.ys)
 
 
