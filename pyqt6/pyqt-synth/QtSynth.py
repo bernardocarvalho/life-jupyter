@@ -41,9 +41,9 @@ from PyQt6.QtWidgets import (
     QLabel,
 )
 
-DEVICE = '/dev/ttyUSB0'
-SAMPLE_PERIOD = 1000  # Sample Period in millisec
-
+UPDATE_PERIOD = 1000  # Sample Period in millisec
+NUM_HARMONICS = 7
+INITIAL_VOL = np.array([10, 5, 0, 0, 0, 1, 0])
 AUDIO_RATE = 44100
 freq = 440
 length = 0.02  # in sec
@@ -61,10 +61,10 @@ def parseCommandLine():
     parser.add_argument("-f", "--file", type=str,
         help="A path to a .qml file to be the source.",
         required=True)
-    """
-    parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--device', type=str,
                         help='Serial device to use', default=DEVICE)
+    """
+    parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--samples', type=int,
                         help='Number of samples to Show/Store', default=120)
     parser.add_argument('-u', '--simUl',
@@ -141,28 +141,21 @@ class MainWindow(QMainWindow):
         lblTr.setStyleSheet("color: red")
         lblTr.setFixedHeight(80)
         # layoutMain.addWidget(lblTr, 0, 0)
-        self.harmonic1 = HarmonicControl(order=1)
-        layoutHarmonics.addWidget(self.harmonic1)
-        self.harmonic2 = HarmonicControl(order=2)
-        layoutHarmonics.addWidget(self.harmonic2)
-        self.harmonic3 = HarmonicControl(order=3)
-        layoutHarmonics.addWidget(self.harmonic3)
-        self.harmonic4 = HarmonicControl(order=4)
-        layoutHarmonics.addWidget(self.harmonic4)
-        self.harmonic5 = HarmonicControl(order=5)
-        layoutHarmonics.addWidget(self.harmonic5)
-        self.harmonic6 = HarmonicControl(order=6)
-        layoutHarmonics.addWidget(self.harmonic6)
+        self.harmonics = []
+        for i in range(NUM_HARMONICS):
+            h = HarmonicControl(order=(i+1))
+            h.dialAmp.setValue(INITIAL_VOL[i])
+            self.harmonics.append(h)
+            layoutHarmonics.addWidget(h)
         # layoutMain.addWidget(slider, 0, 0)
-        lblTb = QLabel('Temperature BLUE')
-        lblTb.setStyleSheet("color: blue")
+        #lblTb = QLabel('Temperature BLUE')
+        #lblTb.setStyleSheet("color: blue")
         # layoutMain.addWidget(lblTb, 0, 1)
-        self.Tredlabel = QLabel('10.0')
         # layoutMain.addWidget(self.Tredlabel, 1, 0)
-        self.Tbluelabel = QLabel('11.0')
+        # self.Tbluelabel = QLabel('11.0')
         # layoutMain.addWidget(self.Tbluelabel, 1, 1)
         plotWdg = pg.PlotWidget(title="Plot")
-        layoutMain.addWidget(plotWdg, stretch=3)  # , 2, 0, 1, 2)
+        layoutMain.addWidget(plotWdg, stretch=2)  # , 2, 0, 1, 2)
         # samples = args['samples']  # Number of sample to store
         # create time values
         self.time = np.linspace(0, length, num_samples,
@@ -201,7 +194,7 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_panels)
-        self.timer.start(SAMPLE_PERIOD)  # Sample Period in millisec
+        self.timer.start(UPDATE_PERIOD)  # Sample Period in millisec
 
     def pydub_play(self):
         self.sig.play()
@@ -217,7 +210,7 @@ class MainWindow(QMainWindow):
 
     def update_panels(self):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
-        print(self.harmonic1.dialAmp.value())
+        print(self.harmonics[0].dialAmp.value())
         try:
             # self.SoundCurve.setData(self.time, self.y)
             self.SoundCurve.setData(self.sig.ts[:1024],
