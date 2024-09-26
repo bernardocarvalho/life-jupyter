@@ -175,16 +175,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_panels(self):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
-        print(self.harmonics[0].dialAmp.value())
+        print(f"Order 1:Amp {self.harmonics[0].dialAmp.value()}", end='')
 
         a = self.harmonics[0].dialAmp.value()
         sig = Sine(self.freq, amp=a, phase=0.0, length=self.length)
+        # print("Order:Amp  ", end='')
         for i in range(1, NUM_HARMONICS):
             a = self.harmonics[i].dialAmp.value()
             n = self.harmonics[i].order
-            print(f"Order: {i}, Amp: {a}")
+            print(f" {i+1}:{a},", end='')
+
             siga = Sine(n * self.freq, a, 0.0, self.length)
             sig = sig.__add__(siga)
+        print("")
         self.sig = sig
         try:
             # self.SoundCurve.setData(self.time, self.y)
