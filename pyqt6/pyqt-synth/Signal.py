@@ -3,7 +3,7 @@ import pygame
 # https://www.scivision.dev/playing-sounds-from-numpy-arrays-in-python/
 from scipy.io.wavfile import write, read
 from scipy import signal  # , interpolate
-from scipy.fft import fft, fftfreq
+# from scipy.fft import fft, fftfreq
 # from scipy import interpolate
 # import matplotlib.pyplot as plt
 # from pydub import AudioSegment, playback
@@ -99,15 +99,6 @@ class Signal(object):
         return Signal(ts, ys, rate=sr)
 
     # calculates the fft of the signal
-    def fft(self):
-        n = self.ys.shape[0]
-        t = 1. / self.rate
-        # calculate fft amplitudes
-        yf = fft(self.ys, n, )
-        # calculate fft frequencies
-        xf = fftfreq(n, t)[:n//2]
-        return xf, yf
-
     # get size of signal in number of samples
     def size(self):
         return self.ys.shape[0]
@@ -203,4 +194,13 @@ class Chirp(Signal):
         plt.xlabel('Time [sec]')
         plt.show()
         
+    def fft(self):
+        n = self.ys.shape[0]
+        t = 1. / self.rate
+        # calculate fft amplitudes
+        yf = fft(self.ys, n, )
+        # calculate fft frequencies
+        xf = fftfreq(n, t)[:n//2]
+        return xf, yf
+
 """
