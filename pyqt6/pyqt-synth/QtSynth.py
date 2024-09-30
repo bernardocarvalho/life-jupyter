@@ -16,6 +16,7 @@ import numpy as np
 # from scipy import signal
 from Signal import Signal, Sine, Square, Sawtooth, Chirp
 from datetime import datetime
+# from pyqtgraph import Qt
 from pyqtgraph.Qt import (
         QtWidgets,
         QtCore,)
@@ -23,12 +24,14 @@ from pyqtgraph.Qt import (
 
 UPDATE_PERIOD = 1000  # Update signal / plot Period, in millisec
 NUM_HARMONICS = 8
-INITIAL_VOL = np.array([10, 5, 0, 0, 0, 1, 0, 0])
+INITIAL_VOL = np.array([15, 5, 0, 0, 0, 1, 0, 0])
 AUDIO_RATE = 44100
 # freq = 440
 #length = 0.02  # in sec
 # num_samples = int(AUDIO_RATE * length)
 
+
+af = QtCore.Qt.AlignmentFlag
 
 def parseCommandLine():
     """Use argparse to parse the command line for specifying
@@ -58,23 +61,48 @@ class HarmonicControl(QtWidgets.QWidget):
         # super().__init__(*args, **kwargs)
         # print(f'order = {order}')
         self.order = order
+        self.phase = 0
         layout = QtWidgets.QVBoxLayout()
         lblOrd = QtWidgets.QLabel(f'Ordem = {order}')
+        lblOrd.setAlignment(af.AlignHCenter)
+
         layout.addWidget(lblOrd)
+        separatorLine = QtWidgets.QFrame()
+        separatorLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        layout.addWidget(separatorLine)
         # self.slider = QSlider(Qt.Orientation.Vertical, self)
-        self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal, self)
-        self.slider.setGeometry(0, 0, 20, 50)
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(180)
-        self.slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
-        self.slider.setTickInterval(90)
-        layout.addWidget(self.slider)
-        layout.addWidget(QtWidgets.QLabel('Phase'))
+        slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal, self)
+        slider.setGeometry(0, 0, 20, 50)
+        slider.setMinimum(-1)
+        slider.setMaximum(1)
+        slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
+        # slider.setTickInterval(90)
+        # slider.setSingleStep(90)
+        self.sliderPhase = slider
+        layout.addWidget(self.sliderPhase)
+        self.lblPhase = QtWidgets.QLabel('Phase')
+        self.lblPhase.setAlignment(af.AlignHCenter)
+        layout.addWidget(self.lblPhase)
+        self.sliderPhase.valueChanged.connect(self.phaseMoved)
+
+        dial = QtWidgets.QDial()
+        dial.setGeometry(0, 0, 30, 30)
+        dial.setMinimum(-90)
+        dial.setMaximum(90)
+        dial.setValue(0)
+        dial.setNotchesVisible(True)
+        self.dialPhase = dial
+        layout.addWidget(self.dialPhase)
+        self.dialPhase.valueChanged.connect(self.phaseMoved)
+        separatorLine = QtWidgets.QFrame()
+        separatorLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        layout.addWidget(separatorLine)
+        # layout.addSeparator()
 
         dial = QtWidgets.QDial()
         dial.setGeometry(0, 0, 30, 30)
         dial.setMinimum(0)
-        dial.setMaximum(10)
+        dial.setMaximum(31)
         # self.dialAmp.setValue(0)
         dial.setNotchesVisible(True)
         self.dialAmp = dial
@@ -84,12 +112,17 @@ class HarmonicControl(QtWidgets.QWidget):
         layout.addWidget(self.lblAmp)
         self.setLayout(layout)
 
+    def phaseMoved(self):
+        self.phase = self.dialPhase.value() + 90 * self.sliderPhase.value()
+        self.lblPhase.setText(f"Phase: {self.phase}")
+        # print(f"Phase: {self.phase}")
+
     def dialMoved(self):
         self.lblAmp.setText(f"Amp: {self.dialAmp.value()}")
 
     def sliderMoved(self):
         print("Dial value = %i" % (self.dialAmp.value()))
-        # self.lblAmp.setText(f"Amp: {self.dialAmp.value()}")
+        self.lblAmp.setText(f"Amp: {self.dialAmp.value()}")
 
     def textbox_text_changed(self):
         self.echo_label.setText(self.textbox.text())
@@ -98,7 +131,7 @@ class HarmonicControl(QtWidgets.QWidget):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Fourier Shyntesizer")
+        self.setWindowTitle("IST-DF Fourier Shyntesizer")
         args = parseCommandLine()  # Return command line arguments
         self.freq = args['frequency']
         self.length = args['length']
@@ -175,26 +208,30 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_panels(self):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
-        print(f"Order 1:Amp {self.harmonics[0].dialAmp.value()}", end='')
-
-        a = self.harmonics[0].dialAmp.value()
-        sig = Sine(self.freq, amp=a, phase=0.0, length=self.length)
-        # print("Order:Amp  ", end='')
-        for i in range(1, NUM_HARMONICS):
-            a = self.harmonics[i].dialAmp.value()
-            n = self.harmonics[i].order
-            print(f" {i+1}:{a},", end='')
-
-            siga = Sine(n * self.freq, a, 0.0, self.length)
-            sig = sig.__add__(siga)
-        print("")
-        self.sig = sig
         try:
+            # print(f"Order 1:Amp {self.harmonics[0].dialAmp.value()}", end='')
+
+            a = self.harmonics[0].dialAmp.value()
+            ph = self.harmonics[0].phase
+            sig = Sine(self.freq, amp=a, phase=ph, length=self.length)
+            # print("Order:Amp  ", end='')
+            for i in range(1, NUM_HARMONICS):
+                a = self.harmonics[i].dialAmp.value()
+                ph = self.harmonics[i].phase
+                # ph = self.harmonics[i].dialPhase.value()
+                n = self.harmonics[i].order
+                # print(f" {i+1}:{a},", end='')
+
+                siga = Sine(n * self.freq, a, ph, self.length)
+                sig = sig.__add__(siga)
+            # print("")
+            self.sig = sig
             # self.SoundCurve.setData(self.time, self.y)
             self.SoundCurve.setData(self.sig.ts[:1024],
                                     self.sig.ys[:1024])
 
         except KeyboardInterrupt:
+            print("Interrupt")
             sys.exit()
 
 
