@@ -23,15 +23,17 @@ from pyqtgraph.Qt import (
 
 
 UPDATE_PERIOD = 1000  # Update signal / plot Period, in millisec
-NUM_HARMONICS = 8
-INITIAL_VOL = np.array([15, 5, 0, 0, 0, 1, 0, 0])
+NUM_HARMONICS = 9
+# INITIAL_VOL = np.array([50, 0, 20, 0, 0, 1, 0, 0, 0])
+FULL_VOL = 100
+INITIAL_VOL = np.array([100, 0, 11, 0, 4, 0, 2, 0, 1])
 AUDIO_RATE = 44100
-# freq = 440
-#length = 0.02  # in sec
+# length = 0.02  # in sec
 # num_samples = int(AUDIO_RATE * length)
 
-
+# AlignmentFlag
 af = QtCore.Qt.AlignmentFlag
+
 
 def parseCommandLine():
     """Use argparse to parse the command line for specifying
@@ -102,7 +104,7 @@ class HarmonicControl(QtWidgets.QWidget):
         dial = QtWidgets.QDial()
         dial.setGeometry(0, 0, 30, 30)
         dial.setMinimum(0)
-        dial.setMaximum(31)
+        dial.setMaximum(100)
         # self.dialAmp.setValue(0)
         dial.setNotchesVisible(True)
         self.dialAmp = dial
@@ -131,7 +133,7 @@ class HarmonicControl(QtWidgets.QWidget):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("IST-DF Fourier Shyntesizer")
+        self.setWindowTitle("IST - LFE Fourier Shyntesizer")
         args = parseCommandLine()  # Return command line arguments
         self.freq = args['frequency']
         self.length = args['length']
@@ -173,6 +175,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # plotT.plot(self.TredArray)  # pen=({'color: red', 'width: 1'}), name="ch{1}")
 
         layoutButtons = QtWidgets.QHBoxLayout()
+        resetBtn = QtWidgets.QPushButton('Reset Sinus')
+        resetBtn.clicked.connect(self.reset_sinus)
+        layoutButtons.addWidget(resetBtn)  # , 3, 0)
         saveBtn = QtWidgets.QPushButton('Save Data')
         saveBtn.clicked.connect(self.save_data)
         layoutButtons.addWidget(saveBtn)  # , 3, 0)
@@ -205,6 +210,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def save_wav(self):
         self.sig.to_wav('som.wav')
+
+    def reset_sinus(self):
+        self.harmonics[0].dialAmp.setValue(FULL_VOL)
+        for i in range(1, NUM_HARMONICS):
+            self.harmonics[i].dialAmp.setValue(0)
+        for i in range(0, NUM_HARMONICS):
+            self.harmonics[i].dialPhase.setValue(0)
+            self.harmonics[i].sliderPhase.setValue(0)
+            self.harmonics[i].phaseMoved()
 
     def update_panels(self):
         # xdata.append((float(data[0]) - timeStart )/1000.0 )
