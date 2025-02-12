@@ -14,9 +14,14 @@ import pyqtgraph as pg
 import numpy as np
 # from scipy.io.wavfile import write
 # from scipy import signal
-from Signal import Signal, Sine, Square, Sawtooth, Chirp
+from Signal import (Signal,
+                    Sine,
+                    Square,
+                    Sawtooth,
+                    Chirp)
 from datetime import datetime
-# from pyqtgraph import Qt
+# from pyqtgraph import Qt 
+from AkaiMidiMix import AkaiMidimix, print_available_midi_connections
 from pyqtgraph.Qt import (
         QtWidgets,
         QtCore,)
@@ -195,9 +200,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(QtCore.QSize(1200, 700))
         self.setCentralWidget(container)
 
+        midi_port_name = "MIDI Mix:MIDI Mix MIDI 1 20:0"
+
+        try:
+            self.midiAkai = AkaiMidimix(self.print_mixer, midi_port_name)  # output_port_name)
+        except OSError as e:
+            print_available_midi_connections()
+            print(f"Error: {e}")
+            exit(-1)
+
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_panels)
         self.timer.start(UPDATE_PERIOD)  # Sample Period in millisec
+
+    def print_mixer(mixer):
+        print(mixer.master_volume)
+        # print(mixer.harmonics)
 
     def pydub_play(self):
         self.sig.play()
