@@ -17,8 +17,8 @@ import numpy as np
 from Signal import (Signal,
                     Sine,
                     Square,
-                    Sawtooth,
-                    Chirp)
+                    Sawtooth,)
+                    #  Chirp)
 from datetime import datetime
 # from pyqtgraph import Qt 
 from AkaiMidiMix import AkaiMidimix, print_available_midi_connections
@@ -27,6 +27,9 @@ from pyqtgraph.Qt import (
         QtWidgets,
         QtCore,)
 
+from pyqtgraph.Qt.QtWidgets import (
+        QVBoxLayout,
+        QMessageBox,)
 
 UPDATE_PERIOD = 1000  # Update signal / plot Period, in millisec
 NUM_HARMONICS = 9
@@ -70,7 +73,7 @@ class HarmonicControl(QtWidgets.QWidget):
         # print(f'order = {order}')
         self.order = order
         self.phase = 0
-        layout = QtWidgets.QVBoxLayout()
+        layout = QVBoxLayout()
         lblOrd = QtWidgets.QLabel(f'Ordem = {order}')
         lblOrd.setAlignment(af.AlignHCenter)
 
@@ -151,7 +154,7 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
         container = QtWidgets.QWidget()
-        layoutMain = QtWidgets.QVBoxLayout()
+        layoutMain = QVBoxLayout()
         layoutHarmonics = QtWidgets.QHBoxLayout()
         layoutMain.addLayout(layoutHarmonics)
         lblTr = QtWidgets.QLabel('Temperature RED')
@@ -164,6 +167,13 @@ class MainWindow(QtWidgets.QMainWindow):
             h.dialAmp.setValue(INITIAL_VOL[i])
             self.harmonics.append(h)
             layoutHarmonics.addWidget(h)
+        slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Vertical, self)
+        # slider.setGeometry(0, 0, 20, 50)
+        slider.setMinimum(0)
+        slider.setMaximum(127)
+        # slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
+        layoutHarmonics.addWidget(slider)
+        self.masterVolumeSlider = slider
         # lblTb.setStyleSheet("color: blue")
         # layoutMain.addWidget(self.Tredlabel, 1, 0)
         # self.Tbluelabel = QLabel('11.0')
@@ -231,7 +241,17 @@ class MainWindow(QtWidgets.QMainWindow):
         # print(mixer.harmonics)
 
     def update_volume(self, volume):
-        print(f"update_volume: {volume}")
+        # print(f"update_volume: {volume}")
+        self.masterVolumeSlider.setValue(volume)
+
+    def update_harmonic(self, harmUpdate):
+        order = harmUpdate['order']
+        value = harmUpdate['amplitude']
+        self.harmonics[order].dialAmp.setValue(value)
+        value = harmUpdate['phase']
+        ival = int(value/127.0 * 180.0 - 90)
+        self.harmonics[order].dialPhase.setValue(ival)
+        # print(harmonic)
 
     def finish_akai(self):
         print("akai Worker finished ")
@@ -239,10 +259,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def connect_akai(self):
         midi_port_name = "MIDI Mix:MIDI Mix MIDI 1 20:0"
         aWorker = AkaiWorker(midi_port_name)
-        aWorker.signals.master_volume.connect(self.update_volume)
+        aWorker.signals.masterVolume.connect(self.update_volume)
+        aWorker.signals.harmonicUpdate.connect(self.update_harmonic)
         aWorker.signals.finished.connect(self.finish_akai)
         # Execute
         self.threadpool.start(aWorker)
+        self.akWorker = aWorker
         print("aWorker Started")
 
     def pydub_play(self):
@@ -295,10 +317,28 @@ class MainWindow(QtWidgets.QMainWindow):
             sys.exit()
 
 
+# Slot function to handle close event
+def closeEvent(event):
+    reply = QMessageBox.question(window,
+                                           'Exit Confirmation',
+                                           'Are you sure you want to exit?',
+                                           QMessageBox.StandardButton.Yes |
+                                           QMessageBox.StandardButton.No,
+                                           QMessageBox.StandardButton.No)
+    if reply == QMessageBox.StandardButton.Yes:
+        event.accept()
+        if window.akWorker is not None:
+            window.akWorker.keep_running = False
+    else:
+        event.ignore()
+
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.show()
+    # Override the closeEvent method
+    window.closeEvent = closeEvent
     sys.exit(app.exec())
 
 """
