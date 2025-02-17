@@ -22,6 +22,7 @@ from Signal import (Signal,
 from datetime import datetime
 # from pyqtgraph import Qt 
 from AkaiMidiMix import AkaiMidimix, print_available_midi_connections
+from AkaiWorker import AkaiWorker
 from pyqtgraph.Qt import (
         QtWidgets,
         QtCore,)
@@ -143,6 +144,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.freq = args['frequency']
         self.length = args['length']
         # self.val = 5.0
+        self.threadpool = QtCore.QThreadPool()
+        print(
+        "Multithreading with maximum %d threads"
+            % self.threadpool.maxThreadCount()
+            )
 
         container = QtWidgets.QWidget()
         layoutMain = QtWidgets.QVBoxLayout()
@@ -180,6 +186,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # plotT.plot(self.TredArray)  # pen=({'color: red', 'width: 1'}), name="ch{1}")
 
         layoutButtons = QtWidgets.QHBoxLayout()
+        akaiBtn = QtWidgets.QPushButton('Connect Akai')
+        akaiBtn.clicked.connect(self.connect_akai)
+        layoutButtons.addWidget(akaiBtn)
+
         resetBtn = QtWidgets.QPushButton('Reset Sinus')
         resetBtn.clicked.connect(self.reset_sinus)
         layoutButtons.addWidget(resetBtn)  # , 3, 0)
@@ -202,12 +212,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         midi_port_name = "MIDI Mix:MIDI Mix MIDI 1 20:0"
 
+        """
         try:
             self.midiAkai = AkaiMidimix(self.print_mixer, midi_port_name)  # output_port_name)
         except OSError as e:
             print_available_midi_connections()
             print(f"Error: {e}")
             exit(-1)
+        """
+
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_panels)
@@ -216,6 +229,21 @@ class MainWindow(QtWidgets.QMainWindow):
     def print_mixer(mixer):
         print(mixer.master_volume)
         # print(mixer.harmonics)
+
+    def update_volume(self, volume):
+        print(f"update_volume: {volume}")
+
+    def finish_akai(self):
+        print("akai Worker finished ")
+
+    def connect_akai(self):
+        midi_port_name = "MIDI Mix:MIDI Mix MIDI 1 20:0"
+        aWorker = AkaiWorker(midi_port_name)
+        aWorker.signals.master_volume.connect(self.update_volume)
+        aWorker.signals.finished.connect(self.finish_akai)
+        # Execute
+        self.threadpool.start(aWorker)
+        print("aWorker Started")
 
     def pydub_play(self):
         self.sig.play()
