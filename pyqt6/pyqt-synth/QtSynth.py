@@ -20,7 +20,6 @@ from Signal import (Signal,
                     Sawtooth,)
                     #  Chirp)
 from datetime import datetime
-# from pyqtgraph import Qt 
 from AkaiMidiMix import AkaiMidimix, print_available_midi_connections
 from AkaiWorker import AkaiWorker
 from pyqtgraph.Qt import (
@@ -220,8 +219,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(QtCore.QSize(1200, 700))
         self.setCentralWidget(container)
 
-        midi_port_name = "MIDI Mix:MIDI Mix MIDI 1 20:0"
-
         """
         try:
             self.midiAkai = AkaiMidimix(self.print_mixer, midi_port_name)  # output_port_name)
@@ -230,7 +227,6 @@ class MainWindow(QtWidgets.QMainWindow):
             print(f"Error: {e}")
             exit(-1)
         """
-
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_panels)
@@ -319,6 +315,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 # Slot function to handle close event
 def closeEvent(event):
+    window.akWorker.keep_running = False
     reply = QMessageBox.question(window,
                                            'Exit Confirmation',
                                            'Are you sure you want to exit?',

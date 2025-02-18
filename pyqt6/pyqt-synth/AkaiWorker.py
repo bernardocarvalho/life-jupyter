@@ -3,9 +3,10 @@
 
 import mido
 from pyqtgraph.Qt import (
-        QtWidgets,
         QtCore,)
+
 NUM_HARMONICS = 8
+HARM_VOLUMES = [16, 20, 24, 28, 46, 50, 54, 58,]
 
 # Notes
 BUTTON_NOTES = [
@@ -13,13 +14,9 @@ BUTTON_NOTES = [
     11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     21, 22, 23, 24, 25, 26, 27]
 
-"""
-class Harmonic():
-    amplitude = 0.0  # 0-1.0
-    logScale = False
-    phase = 0.0  # -180  +180
-    phaseShift = False
-"""
+MUTE_NOTES = [1, 4, 7, 10, 13, 16, 19, 22,]
+REC_ARM_NOTES = [3, 6, 9, 12, 15, 18, 21, 24,]
+SOLO_NOTE = 27
 
 
 class WorkerSignals(QtCore.QObject):
@@ -46,14 +43,15 @@ class AkaiWorker(QtCore.QRunnable):
         self.signals = WorkerSignals()
         self.input_port = mido.open_input(midi_port_name)
         self.output_port = mido.open_output(midi_port_name)
-        self.harmonics = []
-        self.harm = []
-        for order in range(NUM_HARMONICS):
+        # self.harmonics = []
+        self.harmonics = [{'order': 0, 'amplitude': 0, 'recArm': False,
+                           'phase': 0.0, 'mute': False}]
+        for order in range(1, NUM_HARMONICS):
             self.harmonics.append(
-                    {'order': order, 'amplitude': 0, 'logScale': False,
-                     'phase': 0.0, 'phaseShit': False})
+                    {'order': order, 'amplitude': 0, 'recArm': False,
+                     'phase': 0.0, 'mute': True})
             # self.harm.append(Harmonic())
-        self.clear_lights()
+        self.reset_lights()
         self.keep_running = True
 
     def close_ports(self):
@@ -72,10 +70,11 @@ class AkaiWorker(QtCore.QRunnable):
         # print("Led msg", msg)
         self.output_port.send(msg)
 
-    def clear_lights(self):
+    def reset_lights(self):
         for nt in BUTTON_NOTES:
             # pass
             self.send_light_state(nt, False)
+        self.send_light_state(1, True)
 
     def update_harmonic_control(self, harm, button, value):
         if (button == 0):
@@ -89,6 +88,31 @@ class AkaiWorker(QtCore.QRunnable):
             print(self.harmonics[harm])
             self.signals.harmonicUpdate.emit(self.harmonics[harm])
 
+    def update_harmonic_mute(self, harm):
+        if self.harmonics[harm]['mute']:
+            self.harmonics[harm]['mute'] = False
+            vel = 0
+        else:
+            self.harmonics[harm]['mute'] = True
+            vel = 127
+
+        note_number = MUTE_NOTES[harm]
+        msg = mido.Message('note_on', note=note_number, velocity=vel)
+        print("Led msg", msg)
+        self.output_port.send(msg)
+
+    def update_harmonic_rec_arm(self, harm):
+        if self.harmonics[harm]['recArm']:
+            self.harmonics[harm]['recArm'] = False
+            vel = 0
+        else:
+            self.harmonics[harm]['recArm'] = True
+            vel = 127
+        note_number = REC_ARM_NOTES[harm]
+        msg = mido.Message('note_on', note=note_number, velocity=vel)
+        # print("Led msg", msg)
+        self.output_port.send(msg)
+
     def process_message(self, msg):
 
         if msg.is_cc():
@@ -96,24 +120,28 @@ class AkaiWorker(QtCore.QRunnable):
 
             if msg.control == 62:
                 mvolume = msg.value
-                #print("Master Control", msg.control,
-                #      "value", msg.value)
                 self.signals.masterVolume.emit(mvolume)
             else:
-                for h, cbase in enumerate([16, 20, 24, 28, 46, 50, 54, 58,]):
+                for h, cbase in enumerate(HARM_VOLUMES):
                     for btn in range(4):
                         if msg.control == cbase + btn:
                             print(f"Control H:{h} CB:{cbase} BT:{btn} Val:{msg.value}")
                             # print(self.harmonics[h])
                             self.update_harmonic_control(h, btn, msg.value)
 
-            # elif message.type == 'note_on':
-            #    self.process_note_message(message.note)
+        elif msg.type == 'note_on':
+            harm = next((i for i, x in enumerate(MUTE_NOTES)
+                         if x == msg.note), None)
+            if harm is not None:
+                self.update_harmonic_mute(harm)
+            harm = next((i for i, x in enumerate(REC_ARM_NOTES)
+                         if x == msg.note), None)
+            if harm is not None:
+                self.update_harmonic_rec_arm(harm)
 
         elif msg.type in ['note_on', 'note_off']:
             print("Type", msg.type,
                   "Note", msg.note)
-
 
     @QtCore.pyqtSlot()
     def run(self):
@@ -130,7 +158,6 @@ class AkaiWorker(QtCore.QRunnable):
                     self.process_message(message)
                     # Process the received message
 
-                        # self.process_control_change_message(message)
                         # self.callback(self.mixer)
         except KeyboardInterrupt:
             self.close_ports()
@@ -138,3 +165,5 @@ class AkaiWorker(QtCore.QRunnable):
             print("Exiting...")
         except Exception as e:
             print(f"Error processing messages: {e}")
+
+        self.signals.finished.emit()  # Done
