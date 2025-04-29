@@ -1,6 +1,11 @@
 matplotlib
 numpy
+pandas
+bokeh
 scipy
 ipywidgets
 sympy
+# install pip packages in Jupyterlab
 
+# import sys
+# !{sys.executable} -m pip install --upgrade influxdb_client
